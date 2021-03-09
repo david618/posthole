@@ -1,0 +1,54 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: posthole
+  namespace: default
+  labels:
+    app: posthole
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: posthole
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: posthole
+spec:
+  serviceName: posthole
+  selector:
+    matchLabels:
+      app: posthole
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: posthole
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                - agent
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+      - env:
+        - name: POST_HOLE_FOLDER
+          value: /opt
+        name: posthole
+        image: david62243/posthole:1.0.0
+        command:
+          - sh
+          - -c
+          - "java -jar /opt/posthole-0.0.1.jar"
+        imagePullPolicy: Always
